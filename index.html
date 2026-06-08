@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Talk2Code - Portal</title>
+  <style>
+    :root {
+      --bg-base: #0d1117;
+      --bg-surface: #161b22;
+      --border: #30363d;
+      --text-main: #c9d1d9;
+      --text-muted: #8b949e;
+      --link-color: #58a6ff;
+      --btn-green: #238636;
+      --btn-green-hover: #2ea043;
+      --error-red: #f85149;
+      --online-green: #3fb950;
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+    body { min-height: 100vh; display: flex; justify-content: center; align-items: center; background-color: var(--bg-base); color: var(--text-main); padding: 20px; }
+    
+    .auth-container { width: 100%; max-width: 400px; background-color: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 32px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+    h1 { text-align: center; font-size: 24px; font-weight: 600; margin-bottom: 4px; color: #ffffff; }
+    p.tagline { text-align: center; color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+    
+    .form-group { margin-bottom: 16px; }
+    label { display: block; margin-bottom: 6px; color: var(--text-main); font-size: 14px; font-weight: 500; }
+    input { width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); background-color: var(--bg-base); color: var(--text-main); font-size: 14px; outline: none; }
+    input:focus { border-color: var(--link-color); box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15); }
+    
+    .status-msg { margin: 12px 0; color: var(--error-red); font-size: 13px; text-align: center; min-height: 18px; font-weight: 500; line-height: 1.4; }
+    
+    button { width: 100%; padding: 12px; border: none; border-radius: 6px; background-color: var(--btn-green); color: #ffffff; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.2s; }
+    button:hover { background-color: var(--btn-green-hover); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    
+    .switch-mode { margin-top: 20px; text-align: center; color: var(--text-muted); font-size: 13px; }
+    .switch-mode span { color: var(--link-color); cursor: pointer; font-weight: 500; }
+    .switch-mode span:hover { text-decoration: underline; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <div class="auth-container">
+    <h1>Talk2Code</h1>
+    <p class="tagline" id="form-tagline">Create your developer account</p>
+    
+    <form id="main-auth-form">
+      <div class="form-group" id="username-wrapper">
+        <label for="username">Developer Username</label>
+        <input id="username" type="text" placeholder="e.g., kishan_dev" autocomplete="username" />
+      </div>
+      
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input id="email" type="email" placeholder="name@example.com" autocomplete="email" required />
+      </div>
+      
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" required />
+      </div>
+      
+      <div class="status-msg" id="msg-box"></div>
+      
+      <button id="action-btn" type="submit">Sign Up</button>
+    </form>
+    
+    <div class="switch-mode">
+      <span id="toggle-view-btn">Already have an account? Log In</span>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, sendEmailVerification, signOut } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCOrdL6yJ7dVnMbl6YrWjLkf-yKIT0sxSc",
+      authDomain: "talk2code-v2.firebaseapp.com",
+      projectId: "talk2code-v2",
+      storageBucket: "talk2code-v2.firebasestorage.app",
+      messagingSenderId: "132782409852",
+      appId: "1:132782409852:web:bbac1d304fa78c491761f9",
+      measurementId: "G-0CCBXF3BWJ"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const form = document.getElementById("main-auth-form");
+    const usernameWrapper = document.getElementById("username-wrapper");
+    const actionBtn = document.getElementById("action-btn");
+    const toggleViewBtn = document.getElementById("toggle-view-btn");
+    const formTagline = document.getElementById("form-tagline");
+    const msgBox = document.getElementById("msg-box");
+
+    let isSignUpMode = true;
+
+    toggleViewBtn.addEventListener("click", () => {
+      isSignUpMode = !isSignUpMode;
+      msgBox.textContent = "";
+      form.reset();
+      if (isSignUpMode) {
+        usernameWrapper.classList.remove("hidden");
+        actionBtn.textContent = "Sign Up";
+        toggleViewBtn.textContent = "Already have an account? Log In";
+        formTagline.textContent = "Create your developer account";
+      } else {
+        usernameWrapper.classList.add("hidden");
+        actionBtn.textContent = "Log In";
+        toggleViewBtn.textContent = "Don't have an account? Sign Up";
+        formTagline.textContent = "Welcome back! Access your terminal";
+      }
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msgBox.textContent = "";
+      msgBox.style.color = "var(--error-red)";
+      
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const username = document.getElementById("username").value.trim();
+
+      actionBtn.disabled = true;
+      actionBtn.textContent = "Processing...";
+
+      try {
+        if (isSignUpMode) {
+          if (!username) { throw new Error("Username parameter is required."); }
+          
+          const credential = await createUserWithEmailAndPassword(auth, email, password);
+          
+          // Send Verification Link
+          await sendEmailVerification(credential.user);
+
+          // Write data to DB (Online false initially until activation)
+          await setDoc(doc(db, "users", credential.user.uid), {
+            username: username,
+            email: email,
+            isOnline: false,
+            createdAt: serverTimestamp(),
+            lastSeen: serverTimestamp()
+          });
+
+          // Instantly kick out user so they can't sneak into dashboard without verifying
+          await signOut(auth);
+
+          msgBox.style.color = "var(--online-green)";
+          msgBox.textContent = "Verification link sent! Check your inbox/spam and verify to log in.";
+          form.reset();
+          
+          // Toggle to Login view after registration message
+          setTimeout(() => { toggleViewBtn.click(); }, 4000);
+
+        } else {
+          const credential = await signInWithEmailAndPassword(auth, email, password);
+          
+          // Secure Validation Check
+          if (!credential.user.emailVerified) {
+            msgBox.textContent = "Access Denied! Please verify your email first via the link sent to your inbox.";
+            await signOut(auth);
+            actionBtn.disabled = false;
+            actionBtn.textContent = "Log In";
+            return;
+          }
+
+          await updateDoc(doc(db, "users", credential.user.uid), {
+            isOnline: true,
+            lastSeen: serverTimestamp()
+          }).catch(() => {});
+
+          window.location.href = "dashboard.html";
+        }
+      } catch (err) {
+        msgBox.textContent = err.message;
+      } finally {
+        actionBtn.disabled = false;
+        if (!isSignUpMode) actionBtn.textContent = "Log In";
+        if (isSignUpMode && msgBox.style.color !== "var(--online-green)") actionBtn.textContent = "Sign Up";
+      }
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      // Direct redirect strictly locked only for fully verified sessions
+      if (user && user.emailVerified) { 
+        window.location.href = "dashboard.html"; 
+      }
+    });
+  </script>
+</body>
+</html>
